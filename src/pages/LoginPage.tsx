@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
-// image in public/flower.png
+// Image in public/flower.png
 const flowerImage = `${import.meta.env.BASE_URL}flower.png`;
 
 export default function LoginPage() {
@@ -20,44 +20,33 @@ export default function LoginPage() {
       return;
     }
 
-    // simple sample check – replace later with real API/Sheets
-    if (email === "ceo@example.com" && password === "password123") {
-      const user = {
-        email,
-        role: "ceo" as const,
-      };
-      navigate("/dashboard", { state: { user } });
-    } else {
-      setError("Invalid email or password");
-    }
+    // ✅ Dummy login
+    const user = { email, role: "ceo" as const };
+    navigate("/dashboard", { state: { user } });
   };
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-white">
-      {/* Left image section */}
+      {/* Left image */}
       <div
-        className="md:w-1/2 bg-cover bg-center"
+        className="md:w-1/2 h-64 md:h-auto bg-cover bg-center"
         style={{ backgroundImage: `url(${flowerImage})` }}
       />
 
-      {/* Right form section */}
-      <div className="md:w-1/2 flex items-center justify-center px-6 md:px-16 py-10">
+      {/* Right form */}
+      <div className="md:w-1/2 flex items-center justify-center px-6 md:px-16 py-12">
         <div className="w-full max-w-md">
-          {/* Heading */}
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900">
+          <h1 className="text-3xl md:text-5xl font-bold mb-6 text-gray-900 text-center md:text-left">
             Welcome!
           </h1>
 
-          {/* Error message */}
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {error}
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email */}
             <div className="space-y-2">
               <label
                 htmlFor="email"
@@ -71,11 +60,10 @@ export default function LoginPage() {
                 placeholder="abc123@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-full bg-[#fde2d8] px-5 py-3 outline-none placeholder:text-gray-500 text-sm"
+                className="w-full rounded-full bg-[#fde2d8] px-5 py-3 outline-none placeholder:text-gray-500 text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent"
               />
             </div>
 
-            {/* Password */}
             <div className="space-y-2">
               <label
                 htmlFor="password"
@@ -89,24 +77,22 @@ export default function LoginPage() {
                 placeholder="••••••••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-full bg-[#fde2d8] px-5 py-3 outline-none placeholder:text-gray-500 text-sm"
+                className="w-full rounded-full bg-[#fde2d8] px-5 py-3 outline-none placeholder:text-gray-500 text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent"
               />
             </div>
 
-            {/* Forgot password */}
             <div className="flex justify-end">
               <button
                 type="button"
-                className="text-xs font-semibold underline text-gray-800"
+                className="text-xs font-semibold underline text-gray-800 hover:text-orange-500 transition"
               >
-                Forget password ?
+                Forget password?
               </button>
             </div>
 
-            {/* Login button */}
             <button
               type="submit"
-              className="w-full rounded-full bg-black text-white py-3 text-sm font-semibold"
+              className="w-full rounded-full bg-black text-white py-3 text-sm font-semibold hover:bg-gray-800 transition"
             >
               Log in
             </button>
