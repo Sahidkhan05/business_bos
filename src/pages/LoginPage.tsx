@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 // Image in public/flower.png
 const flowerImage = `${import.meta.env.BASE_URL}flower.png`;
@@ -9,9 +10,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
 
@@ -20,6 +23,24 @@ export default function LoginPage() {
       return;
     }
 
+    setIsLoading(true);
+
+    try {
+      // Call backend API to authenticate
+      await login(email, password);
+
+      // Navigate to dashboard on success
+      navigate("/dashboard");
+    } catch (err) {
+      // Display error message from backend
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
     // ✅ Dummy login
     const user = { email, role: "ceo" as const };
     navigate("/dashboard", { state: { user } });
@@ -92,9 +113,11 @@ export default function LoginPage() {
 
             <button
               type="submit"
+              disabled={isLoading}
+              className="w-full rounded-full bg-black text-white py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               className="w-full rounded-full bg-black text-white py-3 text-sm font-semibold hover:bg-gray-800 transition"
             >
-              Log in
+              {isLoading ? "Logging in..." : "Log in"}
             </button>
           </form>
         </div>
