@@ -41,9 +41,6 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-    // ✅ Dummy login
-    const user = { email, role: "ceo" as const };
-    navigate("/dashboard", { state: { user } });
   };
 
   return (
@@ -114,8 +111,10 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full rounded-full bg-black text-white py-3 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              className="w-full rounded-full bg-black text-white py-3 text-sm font-semibold hover:bg-gray-800 transition"
+              className={`w-full rounded-full py-3 text-sm font-semibold transition ${isLoading
+                  ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                  : "bg-black text-white hover:bg-gray-800"
+                }`}
             >
               {isLoading ? "Logging in..." : "Log in"}
             </button>

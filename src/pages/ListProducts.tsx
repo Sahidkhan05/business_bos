@@ -1,46 +1,103 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { productService } from "../services/productService";
+import type { Product, Category } from "../services/productService";
 
 const ListProducts: React.FC = () => {
   const navigate = useNavigate();
 
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [searchText, setSearchText] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [viewImages, setViewImages] = useState<string[] | null>(null);
-  const [editProduct, setEditProduct] = useState<any | null>(null);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
+  // Fetch products and categories on mount
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("products") || "[]");
-    setProducts(stored);
+    fetchProducts();
+    fetchCategories();
   }, []);
 
-  const deleteProduct = (sku: string) => {
-    if (!window.confirm("Delete this product?")) return;
-    const updated = products.filter((p) => p.sku !== sku);
-    setProducts(updated);
-    localStorage.setItem("products", JSON.stringify(updated));
-    alert("Product deleted!");
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const data = await productService.getProducts();
+      setProducts(data);
+    } catch (err: any) {
+      console.error("Failed to fetch products:", err);
+      setError("Failed to load products. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const saveEditedProduct = () => {
-    if (!editProduct) return;
-    const updated = products.map((p) =>
-      p.sku === editProduct.sku ? editProduct : p
-    );
-    setProducts(updated);
-    localStorage.setItem("products", JSON.stringify(updated));
-    setEditProduct(null);
-    alert("Product updated!");
+  const fetchCategories = async () => {
+    try {
+      const data = await productService.getCategories();
+      setCategories(data);
+    } catch (err) {
+      console.error("Failed to fetch categories:", err);
+    }
   };
 
+  const deleteProduct = async (productId: number, sku: string) => {
+    if (!window.confirm(`Delete product ${sku}?`)) return;
+
+    try {
+      await productService.deleteProduct(productId);
+      setProducts(products.filter((p) => p.product_id !== productId));
+      alert("Product deleted successfully!");
+    } catch (err: any) {
+      console.error("Failed to delete product:", err);
+      alert(err.message || "Failed to delete product");
+    }
+  };
+
+  const saveEditedProduct = async () => {
+    if (!editProduct || !editProduct.product_id) return;
+
+    try {
+      const updated = await productService.updateProduct(editProduct.product_id, editProduct);
+      setProducts(products.map((p) =>
+        p.product_id === updated.product_id ? updated : p
+      ));
+      setEditProduct(null);
+      alert("Product updated successfully!");
+    } catch (err: any) {
+      console.error("Failed to update product:", err);
+      alert(err.message || "Failed to update product");
+    }
+  };
+
+  // Get category name by ID
+  const getCategoryName = (categoryId: number) => {
+    const category = categories.find(c => c.category_id === categoryId);
+    return category ? category.name : "Unknown";
+  };
+
+  // Filter products
   const filteredProducts = products.filter((p) => {
-    return (
-      (p.name.toLowerCase().includes(searchText.toLowerCase()) ||
-        p.sku.includes(searchText)) &&
-      (filterCategory ? p.category === filterCategory : true)
-    );
+    const matchesSearch =
+      p.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      p.sku.toLowerCase().includes(searchText.toLowerCase());
+
+    const matchesCategory = filterCategory
+      ? p.category.toString() === filterCategory
+      : true;
+
+    return matchesSearch && matchesCategory;
   });
+
+  if (loading && products.length === 0) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-screen">
+        <div className="text-xl text-gray-600">Loading products...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -55,6 +112,13 @@ const ListProducts: React.FC = () => {
           ⬅ Back
         </button>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          {error}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-xl shadow mb-4 flex flex-col md:flex-row gap-3">
@@ -71,9 +135,11 @@ const ListProducts: React.FC = () => {
           onChange={(e) => setFilterCategory(e.target.value)}
         >
           <option value="">All Categories</option>
-          <option value="Mens">Mens</option>
-          <option value="Womens">Womens</option>
-          <option value="Kids">Kids</option>
+          {categories.map((cat) => (
+            <option key={cat.category_id} value={cat.category_id.toString()}>
+              {cat.name}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -82,11 +148,11 @@ const ListProducts: React.FC = () => {
         <table className="w-full min-w-[800px] bg-white">
           <thead className="bg-gray-100">
             <tr>
-              <th className="p-3 border">Image</th>
               <th className="p-3 border">Name</th>
               <th className="p-3 border">SKU</th>
               <th className="p-3 border">Category</th>
               <th className="p-3 border">Size</th>
+              <th className="p-3 border">Brand</th>
               <th className="p-3 border">Purchase</th>
               <th className="p-3 border">Selling</th>
               <th className="p-3 border">Stock</th>
@@ -96,160 +162,45 @@ const ListProducts: React.FC = () => {
           <tbody>
             {filteredProducts.length > 0 ? (
               filteredProducts.map((p) => (
-                <tr key={p.sku} className="text-center">
-                  <td className="p-3 border">
-                    {p.images?.length > 0 ? (
-                      <img
-                        src={p.images[0]}
-                        alt=""
-                        className="h-12 w-12 object-cover rounded mx-auto"
-                      />
-                    ) : (
-                      "No Image"
-                    )}
-                  </td>
+                <tr key={p.product_id} className="text-center hover:bg-gray-50">
                   <td className="p-3 border">{p.name}</td>
                   <td className="p-3 border">{p.sku}</td>
-                  <td className="p-3 border">{p.category}</td>
-                  <td className="p-3 border">{p.size}</td>
-                  <td className="p-3 border">₹{p.purchasePrice}</td>
-                  <td className="p-3 border">₹{p.sellingPrice}</td>
-                  <td className="p-3 border">{p.openingStock}</td>
-                  <td className="p-3 border flex flex-wrap justify-center gap-2">
-                    <button
-                      onClick={() => setViewImages(p.images || [])}
-                      className="px-3 py-1 bg-blue-500 text-white rounded"
-                    >
-                      View
-                    </button>
-                    <button
-                      onClick={() => setEditProduct({ ...p })}
-                      className="px-3 py-1 bg-green-500 text-white rounded"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteProduct(p.sku)}
-                      className="px-3 py-1 bg-red-500 text-white rounded"
-                    >
-                      Delete
-                    </button>
+                  <td className="p-3 border">{getCategoryName(p.category)}</td>
+                  <td className="p-3 border">{p.size || "-"}</td>
+                  <td className="p-3 border">{p.brand || "-"}</td>
+                  <td className="p-3 border">₹{p.purchase_price}</td>
+                  <td className="p-3 border">₹{p.selling_price}</td>
+                  <td className="p-3 border">{p.current_stock || 0}</td>
+                  <td className="p-3 border">
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <button
+                        onClick={() => navigate("/products/add", {
+                          state: { editProductId: p.product_id }
+                        })}
+                        className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => p.product_id && deleteProduct(p.product_id, p.sku)}
+                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
                 <td className="p-3 border text-center" colSpan={9}>
-                  No Products Found
+                  {loading ? "Loading..." : "No Products Found"}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-
-      {/* IMAGE POPUP */}
-      {viewImages && (
-        <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4">
-          <div className="bg-white p-4 rounded-xl shadow-lg w-full max-w-lg overflow-x-auto">
-            <h2 className="text-lg font-semibold mb-3">Product Images</h2>
-            <div className="flex gap-3 overflow-x-auto pb-3">
-              {viewImages.map((img, i) => (
-                <img
-                  key={i}
-                  src={img}
-                  className="h-40 w-40 object-cover rounded flex-shrink-0"
-                />
-              ))}
-            </div>
-            <button
-              onClick={() => setViewImages(null)}
-              className="mt-4 w-full bg-red-500 text-white py-2 rounded"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* EDIT POPUP */}
-      {editProduct && (
-        <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4">
-          <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md overflow-auto">
-            <h2 className="text-xl font-semibold mb-4">Edit Product</h2>
-            <div className="grid gap-3">
-              <input
-                type="text"
-                className="border p-2 rounded w-full"
-                value={editProduct.name}
-                onChange={(e) =>
-                  setEditProduct({ ...editProduct, name: e.target.value })
-                }
-                placeholder="Product Name"
-              />
-              <input
-                type="text"
-                className="border p-2 rounded w-full"
-                value={editProduct.size}
-                onChange={(e) =>
-                  setEditProduct({ ...editProduct, size: e.target.value })
-                }
-                placeholder="Size"
-              />
-              <input
-                type="number"
-                className="border p-2 rounded w-full"
-                value={editProduct.purchasePrice}
-                onChange={(e) =>
-                  setEditProduct({
-                    ...editProduct,
-                    purchasePrice: e.target.value,
-                  })
-                }
-                placeholder="Purchase Price"
-              />
-              <input
-                type="number"
-                className="border p-2 rounded w-full"
-                value={editProduct.sellingPrice}
-                onChange={(e) =>
-                  setEditProduct({
-                    ...editProduct,
-                    sellingPrice: e.target.value,
-                  })
-                }
-                placeholder="Selling Price"
-              />
-              <input
-                type="number"
-                className="border p-2 rounded w-full"
-                value={editProduct.openingStock}
-                onChange={(e) =>
-                  setEditProduct({
-                    ...editProduct,
-                    openingStock: e.target.value,
-                  })
-                }
-                placeholder="Stock"
-              />
-            </div>
-            <div className="flex flex-col md:flex-row gap-3 mt-5">
-              <button
-                onClick={saveEditedProduct}
-                className="flex-1 bg-green-600 text-white py-2 rounded"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setEditProduct(null)}
-                className="flex-1 bg-gray-300 py-2 rounded"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

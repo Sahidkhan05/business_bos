@@ -12,6 +12,7 @@ import CreateBill from "./pages/CreateBill";
 import StockManagement from "./pages/StockManagement";
 import ImportExport from "./pages/ImportExport";
 import StaffPage from "./pages/Staff/Staff";
+import InventoryPage from "./pages/InventoryPage";
 
 function App() {
   return (
@@ -22,18 +23,18 @@ function App() {
       <Route path="/" element={<DashboardLayout />}>
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="billing" element={<POSBilling />} />
-        <Route path="products" element={<ProductOverview/>} />
+        <Route path="products" element={<ProductOverview />} />
         <Route path="/products/add" element={<AddProduct />} />
         <Route path="/products/list" element={<ListProducts />} />
         <Route path="/products/categories" element={<CategoriesPage />} />
         <Route path="/create-bill" element={<CreateBill />} />
         <Route path="/bill-history" element={<BillHistory />} />
-        <Route path="/products/stock" element={< StockManagement/>} />
-        <Route path="/products/import-export" element={< ImportExport/>} />
+        <Route path="/products/stock" element={< StockManagement />} />
+        <Route path="/products/import-export" element={< ImportExport />} />
+        <Route path="/inventory" element={<InventoryPage />} />
         <Route path="staff" element={<StaffPage />} />
-        
-        
-      
+
+
       </Route>
     </Routes>
   );

@@ -82,6 +82,84 @@ class ApiService {
 
         return response.json();
     }
+
+    /**
+     * Make a PUT request
+     */
+    async put<T>(endpoint: string, data?: unknown): Promise<T> {
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            method: 'PUT',
+            headers: this.getAuthHeaders(),
+            body: data ? JSON.stringify(data) : undefined,
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Make a PATCH request
+     */
+    async patch<T>(endpoint: string, data?: unknown): Promise<T> {
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            method: 'PATCH',
+            headers: this.getAuthHeaders(),
+            body: data ? JSON.stringify(data) : undefined,
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Make a DELETE request
+     */
+    async delete<T>(endpoint: string): Promise<T> {
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            method: 'DELETE',
+            headers: this.getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // DELETE might return empty response
+        const text = await response.text();
+        return text ? JSON.parse(text) : ({} as T);
+    }
+
+    /**
+     * Upload file(s) using FormData
+     */
+    async postFormData<T>(endpoint: string, formData: FormData): Promise<T> {
+        const token = localStorage.getItem('access_token');
+        const headers: HeadersInit = {};
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        // Don't set Content-Type for FormData - browser will set it with boundary
+
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            method: 'POST',
+            headers: headers,
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return response.json();
+    }
 }
 
 export const apiService = new ApiService();

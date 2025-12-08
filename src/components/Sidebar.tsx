@@ -1,5 +1,6 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 import {
   Home,
@@ -27,8 +28,7 @@ const SidebarItem = ({
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-100 ${
-          isActive ? "bg-gray-100 border-r-4 border-black" : ""
+        `flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-gray-100 ${isActive ? "bg-gray-100 border-r-4 border-black" : ""
         }`
       }
     >
@@ -40,10 +40,17 @@ const SidebarItem = ({
 
 const Sidebar = () => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
-  const handleLogout = () => {
-    localStorage.removeItem("token"); // optional
-    navigate("/"); // login page redirect
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/"); // Redirect to login page
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Still navigate to login even if API call fails
+      navigate("/");
+    }
   };
 
   return (
