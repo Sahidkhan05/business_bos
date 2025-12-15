@@ -14,6 +14,7 @@ import ImportExport from "./pages/ImportExport";
 import StaffPage from "./pages/Staff/Staff";
 import InventoryPage from "./pages/InventoryPage";
 import CustomersPage from "./pages/CustomersPage";
+import SalesReport from "./pages/SalesReport";
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
         <Route path="/products/import-export" element={< ImportExport />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/sales" element={<SalesReport />} />
         <Route path="staff" element={<StaffPage />} />
 
 
