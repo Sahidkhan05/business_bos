@@ -10,8 +10,6 @@ const ListProducts: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchText, setSearchText] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
-  const [viewImages, setViewImages] = useState<string[] | null>(null);
-  const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -56,21 +54,7 @@ const ListProducts: React.FC = () => {
     }
   };
 
-  const saveEditedProduct = async () => {
-    if (!editProduct || !editProduct.product_id) return;
 
-    try {
-      const updated = await productService.updateProduct(editProduct.product_id, editProduct);
-      setProducts(products.map((p) =>
-        p.product_id === updated.product_id ? updated : p
-      ));
-      setEditProduct(null);
-      alert("Product updated successfully!");
-    } catch (err: any) {
-      console.error("Failed to update product:", err);
-      alert(err.message || "Failed to update product");
-    }
-  };
 
   // Get category name by ID
   const getCategoryName = (categoryId: number) => {

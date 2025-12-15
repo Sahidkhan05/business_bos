@@ -12,17 +12,7 @@ type AttendanceManagerProps = {
   onMarkAttendance: (record: Omit<AttendanceRecord, "id">) => void;
 };
 
-const thStyle: React.CSSProperties = {
-  border: "1px solid #ccc",
-  padding: "8px",
-  textAlign: "left",
-  background: "#f5f5f5",
-};
 
-const tdStyle: React.CSSProperties = {
-  border: "1px solid #ccc",
-  padding: "8px",
-};
 
 const AttendanceManager: React.FC<AttendanceManagerProps> = ({
   staffList,

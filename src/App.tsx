@@ -13,6 +13,7 @@ import StockManagement from "./pages/StockManagement";
 import ImportExport from "./pages/ImportExport";
 import StaffPage from "./pages/Staff/Staff";
 import InventoryPage from "./pages/InventoryPage";
+import CustomersPage from "./pages/CustomersPage";
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
         <Route path="/products/stock" element={< StockManagement />} />
         <Route path="/products/import-export" element={< ImportExport />} />
         <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/customers" element={<CustomersPage />} />
         <Route path="staff" element={<StaffPage />} />
 
 
