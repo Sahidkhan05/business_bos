@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { productService } from "../services/productService";
-import type { Product, Category } from "../services/productService";
+import type { Product, Category, ProductImage } from "../services/productService";
+import { config } from "../config/config";
 
 const ListProducts: React.FC = () => {
   const navigate = useNavigate();
@@ -13,7 +14,10 @@ const ListProducts: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Fetch products and categories on mount
+  const [viewImages, setViewImages] = useState<string[] | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+
+  // Fetch products & categories
   useEffect(() => {
     fetchProducts();
     fetchCategories();
@@ -24,9 +28,8 @@ const ListProducts: React.FC = () => {
       setLoading(true);
       const data = await productService.getProducts();
       setProducts(data);
-    } catch (err: any) {
-      console.error("Failed to fetch products:", err);
-      setError("Failed to load products. Please try again.");
+    } catch (err) {
+      setError("Failed to load products");
     } finally {
       setLoading(false);
     }
@@ -37,7 +40,7 @@ const ListProducts: React.FC = () => {
       const data = await productService.getCategories();
       setCategories(data);
     } catch (err) {
-      console.error("Failed to fetch categories:", err);
+      console.error("Category fetch failed", err);
     }
   };
 
@@ -46,23 +49,42 @@ const ListProducts: React.FC = () => {
 
     try {
       await productService.deleteProduct(productId);
-      setProducts(products.filter((p) => p.product_id !== productId));
-      alert("Product deleted successfully!");
+      setProducts((prev) => prev.filter((p) => p.product_id !== productId));
+      alert("Product deleted successfully");
     } catch (err: any) {
-      console.error("Failed to delete product:", err);
-      alert(err.message || "Failed to delete product");
+      alert(err.message || "Delete failed");
     }
   };
 
+  const handleViewImages = async (productId: number) => {
+    try {
+      setImageLoading(true);
 
+      const images: ProductImage[] =
+        await productService.getProductImages(productId);
 
-  // Get category name by ID
-  const getCategoryName = (categoryId: number) => {
-    const category = categories.find(c => c.category_id === categoryId);
-    return category ? category.name : "Unknown";
+      // Prepend the base URL to each image path
+      const imageUrls = images.map((img) => {
+        // If the image URL is already absolute, use it as is
+        if (img.image.startsWith('http')) {
+          return img.image;
+        }
+        // Otherwise, prepend the base URL
+        return `${config.apiBaseUrl}${img.image}`;
+      });
+      setViewImages(imageUrls);
+    } catch (err) {
+      alert("Failed to load images");
+    } finally {
+      setImageLoading(false);
+    }
   };
 
-  // Filter products
+  const getCategoryName = (categoryId: number) => {
+    const cat = categories.find((c) => c.category_id === categoryId);
+    return cat ? cat.name : "Unknown";
+  };
+
   const filteredProducts = products.filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -77,8 +99,8 @@ const ListProducts: React.FC = () => {
 
   if (loading && products.length === 0) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-screen">
-        <div className="text-xl text-gray-600">Loading products...</div>
+      <div className="p-6 flex justify-center items-center min-h-screen">
+        <p className="text-lg text-gray-600">Loading products...</p>
       </div>
     );
   }
@@ -86,20 +108,20 @@ const ListProducts: React.FC = () => {
   return (
     <div className="p-6">
 
-      {/* Header + Back */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-3">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold">Product List</h1>
         <button
           onClick={() => navigate("/products")}
-          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
         >
           ⬅ Back
         </button>
       </div>
 
-      {/* Error Message */}
+      {/* Error */}
       {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
           {error}
         </div>
       )}
@@ -108,7 +130,7 @@ const ListProducts: React.FC = () => {
       <div className="bg-white p-4 rounded-xl shadow mb-4 flex flex-col md:flex-row gap-3">
         <input
           type="text"
-          placeholder="Search by name or SKU…"
+          placeholder="Search by name or SKU"
           className="border p-2 rounded w-full"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
@@ -127,9 +149,9 @@ const ListProducts: React.FC = () => {
         </select>
       </div>
 
-      {/* Product Table */}
+      {/* Table */}
       <div className="overflow-x-auto shadow rounded-xl">
-        <table className="w-full min-w-[800px] bg-white">
+        <table className="w-full min-w-[900px] bg-white">
           <thead className="bg-gray-100">
             <tr>
               <th className="p-3 border">Name</th>
@@ -156,17 +178,28 @@ const ListProducts: React.FC = () => {
                   <td className="p-3 border">₹{p.selling_price}</td>
                   <td className="p-3 border">{p.current_stock || 0}</td>
                   <td className="p-3 border">
-                    <div className="flex flex-wrap justify-center gap-2">
+                    <div className="flex justify-center gap-2 flex-wrap">
                       <button
-                        onClick={() => navigate("/products/add", {
-                          state: { editProductId: p.product_id }
-                        })}
+                        onClick={() => handleViewImages(p.product_id!)}
+                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() =>
+                          navigate("/products/add", {
+                            state: { editProductId: p.product_id },
+                          })
+                        }
                         className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => p.product_id && deleteProduct(p.product_id, p.sku)}
+                        onClick={() =>
+                          p.product_id &&
+                          deleteProduct(p.product_id, p.sku)
+                        }
                         className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
                       >
                         Delete
@@ -177,14 +210,47 @@ const ListProducts: React.FC = () => {
               ))
             ) : (
               <tr>
-                <td className="p-3 border text-center" colSpan={9}>
-                  {loading ? "Loading..." : "No Products Found"}
+                <td colSpan={9} className="p-4 text-center">
+                  No Products Found
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {/* IMAGE MODAL */}
+      {viewImages && (
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4">
+          <div className="bg-white p-4 rounded-xl shadow-lg w-full max-w-lg">
+            <h2 className="text-lg font-semibold mb-3">Product Images</h2>
+
+            {imageLoading ? (
+              <p className="text-center text-gray-500">Loading images...</p>
+            ) : viewImages.length > 0 ? (
+              <div className="flex gap-3 overflow-x-auto pb-3">
+                {viewImages.map((img, i) => (
+                  <img
+                    key={i}
+                    src={img}
+                    alt={`product-${i}`}
+                    className="h-40 w-40 object-cover rounded border flex-shrink-0"
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500">No images found</p>
+            )}
+
+            <button
+              onClick={() => setViewImages(null)}
+              className="mt-4 w-full bg-red-500 text-white py-2 rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

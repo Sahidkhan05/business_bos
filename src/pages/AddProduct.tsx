@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { productService } from "../services/productService";
 import type { Product, Category } from "../services/productService";
+import { config } from "../config/config";
 
 // 🔵 Auto SKU Generate Function
 const generateSKU = () => {
@@ -34,6 +35,8 @@ const AddProduct: React.FC = () => {
   const [profit, setProfit] = useState<string>("");
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [existingImageIds, setExistingImageIds] = useState<number[]>([]);
+  const [imagesToDelete, setImagesToDelete] = useState<number[]>([]); // Track images to delete on server
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
@@ -47,6 +50,7 @@ const AddProduct: React.FC = () => {
   useEffect(() => {
     if (editProductId !== null) {
       fetchProduct(editProductId);
+      fetchProductImages(editProductId);
     }
   }, [editProductId]);
 
@@ -74,6 +78,24 @@ const AddProduct: React.FC = () => {
       setError("Failed to load product details.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProductImages = async (productId: number) => {
+    try {
+      const images = await productService.getProductImages(productId);
+      // Build full URLs for existing images
+      const imageUrls = images.map((img) => {
+        if (img.image.startsWith('http')) {
+          return img.image;
+        }
+        return `${config.apiBaseUrl}${img.image}`;
+      });
+      setImagePreviews(imageUrls);
+      setExistingImageIds(images.map((img) => img.image_id));
+      setImagesToDelete([]); // Reset images to delete
+    } catch (err) {
+      console.error("Failed to fetch product images:", err);
     }
   };
 
@@ -109,6 +131,30 @@ const AddProduct: React.FC = () => {
     });
 
     setImagePreviews(previewUrls);
+
+    // Mark all existing images for deletion since user is uploading new ones
+    setImagesToDelete((prev) => [...prev, ...existingImageIds]);
+    setExistingImageIds([]);
+  };
+
+  // 🔵 Remove Image
+  const removeImage = (indexToRemove: number) => {
+    // Check if this is an existing image (from server)
+    if (indexToRemove < existingImageIds.length) {
+      // Mark this existing image for deletion on server
+      const imageIdToDelete = existingImageIds[indexToRemove];
+      setImagesToDelete((prev) => [...prev, imageIdToDelete]);
+
+      // Remove from existing image IDs
+      setExistingImageIds((prev) => prev.filter((_, index) => index !== indexToRemove));
+    } else {
+      // It's a new file upload - remove from files array
+      const fileIndex = indexToRemove - existingImageIds.length;
+      setImageFiles((prev) => prev.filter((_, index) => index !== fileIndex));
+    }
+
+    // Remove from previews
+    setImagePreviews((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
   // 🔵 Save Product
@@ -134,6 +180,25 @@ const AddProduct: React.FC = () => {
       if (editProductId !== null) {
         // Update existing product
         savedProduct = await productService.updateProduct(editProductId, product);
+
+        // Delete images that were marked for deletion
+        if (imagesToDelete.length > 0) {
+          await Promise.all(
+            imagesToDelete.map((imageId) =>
+              productService.deleteProductImage(imageId)
+            )
+          );
+        }
+
+        // Upload new images if any
+        if (imageFiles.length > 0) {
+          await Promise.all(
+            imageFiles.map((file) =>
+              productService.uploadProductImage(editProductId, file)
+            )
+          );
+        }
+
         alert("Product Updated Successfully!");
       } else {
         // Create new product
@@ -142,7 +207,7 @@ const AddProduct: React.FC = () => {
         // Upload images if any
         if (imageFiles.length > 0 && savedProduct.product_id) {
           await Promise.all(
-            imageFiles.map(file =>
+            imageFiles.map((file) =>
               productService.uploadProductImage(savedProduct.product_id!, file)
             )
           );
@@ -272,12 +337,21 @@ const AddProduct: React.FC = () => {
 
           <div className="flex flex-wrap gap-3">
             {imagePreviews.map((src, index) => (
-              <img
-                key={index}
-                src={src}
-                className="w-24 h-24 rounded-2xl border border-gray-300 object-cover shadow-sm"
-                alt={`Preview ${index + 1}`}
-              />
+              <div key={index} className="relative">
+                <img
+                  src={src}
+                  className="w-24 h-24 rounded-2xl border border-gray-300 object-cover shadow-sm"
+                  alt={`Preview ${index + 1}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeImage(index)}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition shadow-md text-sm font-bold"
+                  title="Remove image"
+                >
+                  ✕
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -391,9 +465,6 @@ const AddProduct: React.FC = () => {
         </button>
       </div>
     </div>
-
-
-
   );
 };
 

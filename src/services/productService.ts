@@ -137,6 +137,20 @@ class ProductService {
         return apiService.postFormData<ProductImage>(`${this.baseUrl}/product-images/`, formData);
     }
 
+
+    /**
+     * Get product images
+     */
+    async getProductImages(productId: number): Promise<ProductImage[]> {
+        return apiService.get<ProductImage[]>(`${this.baseUrl}/products/${productId}/images/`);
+    }
+
+    /**
+     * Delete a product image
+     */
+    async deleteProductImage(imageId: number): Promise<void> {
+        return apiService.delete<void>(`${this.baseUrl}/product-images/${imageId}/`);
+    }
     /**
      * Add stock to a product
      */
