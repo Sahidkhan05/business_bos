@@ -64,6 +64,13 @@ export interface InventoryStats {
     total_stock_movements: number;
 }
 
+export interface ImportResult {
+    message: string;
+    success_count: number;
+    error_count: number;
+    errors: string[];
+}
+
 /**
  * Product Service - handles all product-related API calls
  */
@@ -124,6 +131,13 @@ class ProductService {
      */
     async createCategory(category: { name: string; description?: string }): Promise<Category> {
         return apiService.post<Category>(`${this.baseUrl}/categories/`, category);
+    }
+
+    /**
+     * Delete a category
+     */
+    async deleteCategory(categoryId: number): Promise<void> {
+        return apiService.delete<void>(`${this.baseUrl}/categories/${categoryId}/`);
     }
 
     /**
@@ -254,6 +268,33 @@ class ProductService {
         });
 
         return stats;
+    }
+
+    /**
+     * Export products as CSV - triggers file download
+     */
+    async exportProductsCSV(): Promise<void> {
+        const response = await apiService.getBlob(`${this.baseUrl}/products/export-csv/`);
+
+        // Create a download link and click it
+        const blob = new Blob([response], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'products_export.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    }
+
+    /**
+     * Import products from CSV file
+     */
+    async importProductsCSV(file: File): Promise<ImportResult> {
+        const formData = new FormData();
+        formData.append('file', file);
+        return apiService.postFormData<ImportResult>(`${this.baseUrl}/products/import-csv/`, formData);
     }
 }
 

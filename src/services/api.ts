@@ -5,6 +5,8 @@ import { config } from '../config/config';
  */
 class ApiService {
     private baseUrl: string;
+    private isRefreshing: boolean = false;
+    private refreshSubscribers: Array<(token: string) => void> = [];
 
     constructor() {
         this.baseUrl = config.apiBaseUrl;
@@ -27,10 +29,119 @@ class ApiService {
     }
 
     /**
+     * Subscribe to token refresh completion
+     */
+    private subscribeTokenRefresh(callback: (token: string) => void): void {
+        this.refreshSubscribers.push(callback);
+    }
+
+    /**
+     * Notify all subscribers that token has been refreshed
+     */
+    private onTokenRefreshed(token: string): void {
+        this.refreshSubscribers.forEach(callback => callback(token));
+        this.refreshSubscribers = [];
+    }
+
+    /**
+     * Attempt to refresh the access token
+     */
+    private async refreshAccessToken(): Promise<string | null> {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (!refreshToken) {
+            return null;
+        }
+
+        try {
+            const response = await fetch(`${this.baseUrl}/api/token/refresh/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refresh: refreshToken }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Token refresh failed');
+            }
+
+            const data = await response.json();
+            localStorage.setItem('access_token', data.access);
+
+            // If a new refresh token is provided, update it too
+            if (data.refresh) {
+                localStorage.setItem('refresh_token', data.refresh);
+            }
+
+            return data.access;
+        } catch (error) {
+            // Refresh failed - clear tokens and redirect to login
+            this.handleAuthFailure();
+            return null;
+        }
+    }
+
+    /**
+     * Handle authentication failure - clear tokens and redirect to login
+     */
+    private handleAuthFailure(): void {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+
+        // Redirect to login page if not already there
+        if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+        }
+    }
+
+    /**
+     * Execute a fetch request with automatic token refresh on 401
+     */
+    private async fetchWithTokenRefresh(
+        url: string,
+        options: RequestInit
+    ): Promise<Response> {
+        let response = await fetch(url, options);
+
+        // If 401 Unauthorized, try to refresh token and retry
+        if (response.status === 401) {
+            if (!this.isRefreshing) {
+                this.isRefreshing = true;
+                const newToken = await this.refreshAccessToken();
+                this.isRefreshing = false;
+
+                if (newToken) {
+                    this.onTokenRefreshed(newToken);
+
+                    // Retry the original request with new token
+                    const newHeaders = { ...options.headers } as Record<string, string>;
+                    newHeaders['Authorization'] = `Bearer ${newToken}`;
+                    options.headers = newHeaders;
+
+                    response = await fetch(url, options);
+                }
+            } else {
+                // Wait for the ongoing refresh to complete
+                const newToken = await new Promise<string>((resolve) => {
+                    this.subscribeTokenRefresh(resolve);
+                });
+
+                // Retry with the new token
+                const newHeaders = { ...options.headers } as Record<string, string>;
+                newHeaders['Authorization'] = `Bearer ${newToken}`;
+                options.headers = newHeaders;
+
+                response = await fetch(url, options);
+            }
+        }
+
+        return response;
+    }
+
+    /**
      * Make a GET request
      */
     async get<T>(endpoint: string): Promise<T> {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        const response = await this.fetchWithTokenRefresh(`${this.baseUrl}${endpoint}`, {
             method: 'GET',
             headers: this.getAuthHeaders(),
         });
@@ -46,7 +157,7 @@ class ApiService {
      * Make a POST request
      */
     async post<T>(endpoint: string, data?: unknown): Promise<T> {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        const response = await this.fetchWithTokenRefresh(`${this.baseUrl}${endpoint}`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
             body: data ? JSON.stringify(data) : undefined,
@@ -87,7 +198,7 @@ class ApiService {
      * Make a PUT request
      */
     async put<T>(endpoint: string, data?: unknown): Promise<T> {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        const response = await this.fetchWithTokenRefresh(`${this.baseUrl}${endpoint}`, {
             method: 'PUT',
             headers: this.getAuthHeaders(),
             body: data ? JSON.stringify(data) : undefined,
@@ -104,7 +215,7 @@ class ApiService {
      * Make a PATCH request
      */
     async patch<T>(endpoint: string, data?: unknown): Promise<T> {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        const response = await this.fetchWithTokenRefresh(`${this.baseUrl}${endpoint}`, {
             method: 'PATCH',
             headers: this.getAuthHeaders(),
             body: data ? JSON.stringify(data) : undefined,
@@ -121,7 +232,7 @@ class ApiService {
      * Make a DELETE request
      */
     async delete<T>(endpoint: string): Promise<T> {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        const response = await this.fetchWithTokenRefresh(`${this.baseUrl}${endpoint}`, {
             method: 'DELETE',
             headers: this.getAuthHeaders(),
         });
@@ -148,7 +259,7 @@ class ApiService {
 
         // Don't set Content-Type for FormData - browser will set it with boundary
 
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        const response = await this.fetchWithTokenRefresh(`${this.baseUrl}${endpoint}`, {
             method: 'POST',
             headers: headers,
             body: formData,
@@ -159,6 +270,22 @@ class ApiService {
         }
 
         return response.json();
+    }
+
+    /**
+     * Get response as a Blob (for file downloads)
+     */
+    async getBlob(endpoint: string): Promise<Blob> {
+        const response = await this.fetchWithTokenRefresh(`${this.baseUrl}${endpoint}`, {
+            method: 'GET',
+            headers: this.getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return response.blob();
     }
 }
 

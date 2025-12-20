@@ -1,18 +1,12 @@
-// AttendanceManager.tsx
+// AttendanceManager.tsx - Mark and view staff attendance
 import React, { useState } from "react";
-import type {
-  Staff,
-  AttendanceRecord,
-  AttendanceStatus,
-} from "./StaffTypes";
+import type { Staff, AttendanceRecord, AttendanceStatus } from "./StaffTypes";
 
 type AttendanceManagerProps = {
   staffList: Staff[];
   attendance: AttendanceRecord[];
-  onMarkAttendance: (record: Omit<AttendanceRecord, "id">) => void;
+  onMarkAttendance: (record: Omit<AttendanceRecord, "attendance_id" | "created_at">) => void;
 };
-
-
 
 const AttendanceManager: React.FC<AttendanceManagerProps> = ({
   staffList,
@@ -20,10 +14,11 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({
   onMarkAttendance,
 }) => {
   const [selectedStaffId, setSelectedStaffId] = useState<number | "">("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]); // Default to today
   const [status, setStatus] = useState<AttendanceStatus>("Present");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedStaffId || !date) {
@@ -31,15 +26,32 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({
       return;
     }
 
-    onMarkAttendance({
-      staffId: Number(selectedStaffId),
-      date,
-      status,
-    });
+    setSubmitting(true);
+    try {
+      await onMarkAttendance({
+        staffId: Number(selectedStaffId),
+        date,
+        status,
+      });
+      // Reset selection after marking
+      setSelectedStaffId("");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getStatusBadge = (attendanceStatus: AttendanceStatus) => {
+    const styles: Record<AttendanceStatus, string> = {
+      Present: "bg-green-100 text-green-700",
+      Absent: "bg-red-100 text-red-700",
+      Leave: "bg-yellow-100 text-yellow-700",
+    };
+    return `px-2 py-1 rounded-full text-xs font-medium ${styles[attendanceStatus]}`;
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Mark Attendance Form */}
       <div className="lg:col-span-4">
         <div className="bg-white p-5 rounded-xl shadow-sm border">
           <h3 className="text-lg font-semibold mb-3">Mark Attendance</h3>
@@ -50,11 +62,12 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({
               <select
                 value={selectedStaffId}
                 onChange={(e) => setSelectedStaffId(e.target.value ? Number(e.target.value) : "")}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-400"
+                disabled={submitting}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100"
               >
                 <option value="">Select staff</option>
                 {staffList.map((s) => (
-                  <option key={s.id} value={s.id}>
+                  <option key={s.staff_id} value={s.staff_id}>
                     {s.name} ({s.position})
                   </option>
                 ))}
@@ -67,7 +80,8 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-400"
+                disabled={submitting}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100"
               />
             </label>
 
@@ -76,7 +90,8 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as AttendanceStatus)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-400"
+                disabled={submitting}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100"
               >
                 <option value="Present">Present</option>
                 <option value="Absent">Absent</option>
@@ -87,21 +102,26 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             <div>
               <button
                 type="submit"
-                className="w-full inline-flex justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                disabled={submitting || !selectedStaffId}
+                className="w-full inline-flex justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save Attendance
+                {submitting ? "Saving..." : "Save Attendance"}
               </button>
             </div>
           </form>
         </div>
       </div>
 
+      {/* Attendance History */}
       <div className="lg:col-span-8">
         <div className="bg-white p-5 rounded-xl shadow-sm border">
-          <h3 className="text-lg font-semibold mb-3">Recent Staff Attendance</h3>
+          <h3 className="text-lg font-semibold mb-3">Recent Attendance Records</h3>
 
           {attendance.length === 0 ? (
-            <p className="text-gray-600">No attendance records yet.</p>
+            <div className="text-center py-8">
+              <p className="text-gray-600">No attendance records yet.</p>
+              <p className="text-sm text-gray-400 mt-1">Mark attendance for staff to see records here.</p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -115,14 +135,27 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 <tbody className="bg-white divide-y divide-gray-100">
                   {attendance
                     .slice()
-                    .reverse()
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .slice(0, 20) // Show only last 20 records
                     .map((record) => {
-                      const staff = staffList.find((s) => s.id === record.staffId);
+                      const staff = staffList.find((s) => s.staff_id === record.staffId);
                       return (
-                        <tr key={record.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-gray-700">{staff?.name ?? "Unknown"}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{record.date}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{record.status}</td>
+                        <tr key={record.attendance_id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {record.staff_name || staff?.name || "Unknown"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {new Date(record.date).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={getStatusBadge(record.status)}>
+                              {record.status}
+                            </span>
+                          </td>
                         </tr>
                       );
                     })}

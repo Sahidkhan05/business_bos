@@ -40,6 +40,8 @@ const AddProduct: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
 
   // 🔵 Fetch categories on mount
   useEffect(() => {
@@ -61,6 +63,19 @@ const AddProduct: React.FC = () => {
     } catch (err) {
       console.error("Failed to fetch categories:", err);
       setError("Failed to load categories. Please refresh the page.");
+    }
+  };
+
+  // Handle adding new category
+  const handleAddCategory = async (name: string, description: string) => {
+    setIsCreatingCategory(true);
+    try {
+      const newCategory = await productService.createCategory({ name, description });
+      setCategories([...categories, newCategory]);
+      // Auto-select the new category
+      updateField("category", newCategory.category_id);
+    } finally {
+      setIsCreatingCategory(false);
     }
   };
 
@@ -289,18 +304,28 @@ const AddProduct: React.FC = () => {
             readOnly
           />
 
-          <select
-            className="w-full mb-3 p-3 rounded-xl border border-gray-300 shadow-sm"
-            value={product.category}
-            onChange={(e) => updateField("category", Number(e.target.value))}
-          >
-            <option value={0}>Select Category *</option>
-            {categories.map((cat) => (
-              <option key={cat.category_id} value={cat.category_id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-2 mb-3">
+            <select
+              className="flex-1 p-3 rounded-xl border border-gray-300 shadow-sm"
+              value={product.category}
+              onChange={(e) => updateField("category", Number(e.target.value))}
+            >
+              <option value={0}>Select Category *</option>
+              {categories.map((cat) => (
+                <option key={cat.category_id} value={cat.category_id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setIsAddCategoryModalOpen(true)}
+              className="px-3 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition whitespace-nowrap"
+              title="Add New Category"
+            >
+              + New
+            </button>
+          </div>
 
           <input
             type="text"
@@ -464,6 +489,75 @@ const AddProduct: React.FC = () => {
           {loading ? "Saving..." : editProductId !== null ? "Save Changes" : "Save Product"}
         </button>
       </div>
+
+      {/* Add Category Modal */}
+      {isAddCategoryModalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+          <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4">Add New Category</h2>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const name = formData.get("name") as string;
+                const description = formData.get("description") as string;
+                if (!name.trim()) {
+                  alert("Category name is required");
+                  return;
+                }
+                try {
+                  await handleAddCategory(name.trim(), description.trim());
+                  setIsAddCategoryModalOpen(false);
+                } catch (err) {
+                  alert("Failed to create category. It may already exist.");
+                }
+              }}
+            >
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter category name"
+                  disabled={isCreatingCategory}
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter description (optional)"
+                  rows={3}
+                  disabled={isCreatingCategory}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsAddCategoryModalOpen(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  disabled={isCreatingCategory}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300"
+                  disabled={isCreatingCategory}
+                >
+                  {isCreatingCategory ? "Creating..." : "Add Category"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
