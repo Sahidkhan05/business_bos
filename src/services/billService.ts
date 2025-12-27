@@ -8,6 +8,7 @@ export interface BillItem {
     price: number;
     discount: number;
     subtotal?: number;
+    cost_price?: number;
 }
 
 export interface Bill {

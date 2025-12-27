@@ -40,6 +40,24 @@ export interface SalesReportFilters {
     payment_type?: string;
 }
 
+export interface ProfitLossAnalytics {
+    totalRevenue: number;
+    totalCost: number;
+    grossProfit: number;
+    profitMargin: number;
+    totalBills: number;
+}
+
+export interface ProductProfitData {
+    product_id: number;
+    product_name: string;
+    quantity_sold: number;
+    revenue: number;
+    cost: number;
+    profit: number;
+    margin: number;
+}
+
 export const salesService = {
     /**
      * Get sales analytics for a given date range
@@ -242,5 +260,83 @@ export const salesService = {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    },
+
+    /**
+     * Get profit/loss analytics
+     */
+    getProfitLossAnalytics: async (filters?: SalesReportFilters): Promise<ProfitLossAnalytics> => {
+        const bills = await billService.getBills(filters);
+
+        let totalRevenue = 0;
+        let totalCost = 0;
+
+        bills.forEach(bill => {
+            bill.items.forEach(item => {
+                const itemRevenue = Number(item.subtotal || 0);
+                const itemCost = (Number(item.cost_price) || 0) * item.quantity;
+                totalRevenue += itemRevenue;
+                totalCost += itemCost;
+            });
+        });
+
+        const grossProfit = totalRevenue - totalCost;
+        const profitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
+        return {
+            totalRevenue,
+            totalCost,
+            grossProfit,
+            profitMargin,
+            totalBills: bills.length,
+        };
+    },
+
+    /**
+     * Get profit breakdown by product
+     */
+    getProductProfitBreakdown: async (filters?: SalesReportFilters, limit: number = 10): Promise<ProductProfitData[]> => {
+        const bills = await billService.getBills(filters);
+
+        const productMap = new Map<number, {
+            name: string;
+            quantity: number;
+            revenue: number;
+            cost: number;
+        }>();
+
+        bills.forEach(bill => {
+            bill.items.forEach(item => {
+                const existing = productMap.get(item.product) || {
+                    name: item.product_name || 'Unknown',
+                    quantity: 0,
+                    revenue: 0,
+                    cost: 0
+                };
+                existing.quantity += item.quantity;
+                existing.revenue += Number(item.subtotal || 0);
+                existing.cost += (Number(item.cost_price) || 0) * item.quantity;
+                productMap.set(item.product, existing);
+            });
+        });
+
+        const productProfits: ProductProfitData[] = Array.from(productMap.entries())
+            .map(([product_id, data]) => {
+                const profit = data.revenue - data.cost;
+                const margin = data.revenue > 0 ? (profit / data.revenue) * 100 : 0;
+                return {
+                    product_id,
+                    product_name: data.name,
+                    quantity_sold: data.quantity,
+                    revenue: data.revenue,
+                    cost: data.cost,
+                    profit,
+                    margin,
+                };
+            })
+            .sort((a, b) => b.profit - a.profit)
+            .slice(0, limit);
+
+        return productProfits;
     },
 };

@@ -16,6 +16,15 @@ import InventoryPage from "./pages/InventoryPage";
 import CustomersPage from "./pages/CustomersPage";
 import SalesReport from "./pages/SalesReport";
 
+// Supplier Module Pages
+import {
+  SuppliersPage,
+  SupplierDetails,
+  PurchaseOrderList,
+  CreatePurchaseOrder,
+  PurchaseOrderDetails
+} from "./pages/suppliers";
+
 function App() {
   return (
     <Routes>
@@ -38,6 +47,13 @@ function App() {
         <Route path="/sales" element={<SalesReport />} />
         <Route path="staff" element={<StaffPage />} />
 
+        {/* Supplier Module Routes */}
+        <Route path="/suppliers" element={<SuppliersPage />} />
+        <Route path="/suppliers/add" element={<SupplierDetails />} />
+        <Route path="/suppliers/:id" element={<SupplierDetails />} />
+        <Route path="/purchase-orders" element={<PurchaseOrderList />} />
+        <Route path="/purchase-orders/create" element={<CreatePurchaseOrder />} />
+        <Route path="/purchase-orders/:id" element={<PurchaseOrderDetails />} />
 
       </Route>
     </Routes>

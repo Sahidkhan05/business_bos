@@ -10,6 +10,7 @@ import {
   Users,
   BarChart2,
   UserCog,
+  Truck,
   // Settings,
   LogOut,
 } from "lucide-react";
@@ -69,6 +70,7 @@ const Sidebar = () => {
           <SidebarItem icon={<ShoppingCart size={18} />} label="POS Billing" to="/billing" />
           <SidebarItem icon={<Box size={18} />} label="Products" to="/products" />
           <SidebarItem icon={<Layers size={18} />} label="Inventory" to="/inventory" />
+          <SidebarItem icon={<Truck size={18} />} label="Suppliers" to="/suppliers" />
           <SidebarItem icon={<Users size={18} />} label="Customers" to="/customers" />
           <SidebarItem icon={<BarChart2 size={18} />} label="Sales Report" to="/sales" />
           {/* 👇 Staff link */}
