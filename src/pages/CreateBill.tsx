@@ -27,9 +27,8 @@ const CreateBill: React.FC = () => {
   /* ---------------- CUSTOMER ---------------- */
   const [mobileInput, setMobileInput] = useState("");
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null
-  );
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<Customer | null>(null);
   const [customerNotFound, setCustomerNotFound] = useState(false);
   const [showNewCustomerCard, setShowNewCustomerCard] = useState(false);
 
@@ -48,6 +47,8 @@ const CreateBill: React.FC = () => {
   const [items, setItems] = useState<BillItem[]>([]);
   const [billDiscount, setBillDiscount] = useState(0);
   const [paymentType, setPaymentType] = useState("Cash");
+
+  /* ✅ FIX: loading state added */
   const [loading, setLoading] = useState(false);
 
   /* ---------------- INIT ---------------- */
@@ -398,6 +399,7 @@ Thank you!`;
 
         <div className="grid grid-cols-3 gap-2 mt-4">
           <button
+            disabled={loading}
             onClick={() => finalizeBill()}
             className="bg-gray-700 text-white p-2 rounded"
           >

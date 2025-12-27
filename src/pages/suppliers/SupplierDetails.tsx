@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    ArrowLeft, Save, Truck, Building2, User, Phone, Mail,
+    ArrowLeft, Save, Truck, Building2, Phone,
     MapPin, CreditCard, FileText, AlertCircle
 } from 'lucide-react';
 import { supplierService, type Supplier } from '../../services/supplierService';
