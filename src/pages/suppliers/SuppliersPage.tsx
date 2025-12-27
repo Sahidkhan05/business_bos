@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Truck, Plus, Search, Phone, Mail, MoreVertical,
-    Edit, Trash2, Eye, Package, DollarSign, AlertCircle
+    Edit, Trash2, Eye, Package,  AlertCircle
 } from 'lucide-react';
 import {
     supplierService,
